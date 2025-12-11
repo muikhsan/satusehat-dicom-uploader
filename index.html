@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SATUSEHAT DICOM Bridge</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        input, button, select { padding: 8px; margin-top: 5px; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        .log-area { height: 200px; overflow-y: scroll; background: #eee; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; font-family: monospace; font-size: 0.8em; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>SATUSEHAT DICOM Bridge</h1>
+    
+    <div class="section">
+        <h2>📸 DICOM Transfer</h2>
+        <input type="text" id="dicomPath" placeholder="DICOM File Path" readonly>
+        <button id="selectFileButton">Select DICOM File (*.dcm)</button>
+        
+        <input type="text" id="accessionNumber" placeholder="Accession Number (from SIMRS order)" required>
+        <input type="text" id="studyDescription" placeholder="Study Description (e.g., CHEST AP)" required>
+        
+        <h3>Router Configuration</h3>
+        <input type="text" id="routerIP" placeholder="Router IP (e.g., 192.168.1.100)" value="127.0.0.1">
+        <input type="number" id="routerPort" placeholder="Router Port (e.g., 11112)" value="11112">
+        <input type="text" id="routerAE" placeholder="Router AETitle (e.g., DCMROUTER)" value="DCMROUTER">
+        <input type="text" id="myAE" placeholder="My AETitle (SCU, e.g., FDR_SMART_X)" value="FDR_SMART_X">
+        
+        <button id="sendButton">Execute C-STORE & Send to Router</button>
+    </div>
+
+    <div class="section">
+        <h2>📝 Execution Log (SIMRS & Router Activity)</h2>
+        <div id="logOutput" class="log-area"></div>
+    </div>
+    
+    <script src="renderer.js"></script>
+</body>
+</html>
