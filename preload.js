@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   // DICOM IPC
   sendDicom: (data) => ipcRenderer.invoke('dicom:send', data),
+  validateDicom: (filePath) => ipcRenderer.invoke('dicom:validate', filePath), // Add this line
   
   // UI Helpers
   openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),

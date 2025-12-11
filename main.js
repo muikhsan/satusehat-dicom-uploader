@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const logger = require('./utils/logger');
 const { sendDicomToRouter } = require('./utils/dicom-sender');
+const { validateDicomFile } = require('./utils/dicom-validator'); // Import the new validator
 
 let mainWindow;
 
@@ -47,6 +48,14 @@ ipcMain.handle('dicom:send', async (event, data) => {
     // NOTE: In a real app, you might validate the Accession Number against FHIR first.
     
     const result = await sendDicomToRouter(filePath, routerConfig, accessionNumber, studyDescription);
+    return result;
+});
+
+// 2. Handle DICOM File Validation
+ipcMain.handle('dicom:validate', async (event, filePath) => {
+    logger.info(`Received request to validate DICOM file: ${filePath}`);
+    const result = await validateDicomFile(filePath);
+    logger.info(`Validation result for ${filePath}: ${JSON.stringify(result)}`);
     return result;
 });
 
