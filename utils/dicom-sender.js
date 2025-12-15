@@ -77,33 +77,72 @@ async function sendDicomToRouter(filePath, routerConfig, accessionNumber, studyD
         
         const client = new Client();
         
-        const response = await new Promise((resolve, reject) => {
-            request.on('response', (res) => {
-                resolve(res);
+        let response;
+        try {
+            response = await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('DICOM C-STORE request timed out after 30 seconds.'));
+                }, 30000); // 30-second timeout
+
+                request.on('response', (res) => {
+                    clearTimeout(timeout);
+                    resolve(res);
+                });
+
+                client.addRequest(request);
+                
+                client.send(routerIP, routerPort, myAE, routerAE);
+                
+                client.on('networkError', (e) => {
+                    clearTimeout(timeout);
+                    reject(e);
+                });
+                client.on('closed', () => logger.debug('DICOM association closed.'));
             });
-
-            client.addRequest(request);
-            
-            client.send(routerIP, routerPort, myAE, routerAE);
-            
-            client.on('networkError', (e) => reject(e));
-            client.on('closed', () => logger.debug('DICOM association closed.'));
-        });
-
-        const status = response.getStatus();
-        
-        if (status === Status.Success) {
-            logger.success(`DICOM C-STORE successful! Status Code: 0x${status.code.toString(16)}`);
-            return { success: true, message: 'DICOM successfully stored on Router.' };
-        } else {
-            const statusMsg = `C-STORE Failed: 0x${status.code.toString(16)} - ${status.description}`;
-            logger.error(statusMsg, response);
-            return { success: false, message: statusMsg };
+        } catch (e) {
+            // This will catch network errors or timeouts
+            const errorMsg = `DICOM Network Error: ${e.message}`;
+            logger.error(errorMsg, e);
+            return { success: false, message: errorMsg };
         }
+
+        // We should get a response object here, but we double-check
+        if (!response) {
+            const errorMsg = 'C-STORE operation did not receive a response from the server.';
+            logger.error(errorMsg);
+            return { success: false, message: errorMsg };
+        }
+        
+        // Check status from the response's command dataset
+        // Status code 0x0000 (0) means Success in DICOM
+        let statusCode = null;
+        try {
+            if (response.commandDataset && response.commandDataset.elements) {
+                statusCode = response.commandDataset.elements.Status;
+            }
+        } catch (e) {
+            logger.error('Failed to extract status from response', e);
+        }
+        
+        logger.debug(`C-STORE Response Status Code: ${statusCode}`);
+        
+        // Status code 0x0000 (0) means Success in DICOM
+        if (statusCode === 0) {
+            logger.success(`DICOM C-STORE successful! Status Code: 0x${statusCode.toString(16).toUpperCase().padStart(4, '0')}`);
+            return { success: true, message: 'DICOM successfully stored on Router.' };
+        }
+        
+        // Handle C-STORE failure cases
+        const statusHex = statusCode !== null ? `0x${statusCode.toString(16).toUpperCase().padStart(4, '0')}` : 'N/A';
+        const statusMsg = `C-STORE Failed with Status Code: ${statusHex}`;
+        logger.error(statusMsg);
+        return { success: false, message: statusMsg };
+        
     } catch (e) {
-        const errorMsg = e.stderr ? `DCMTK Error: ${e.stderr}` : `DICOM Processing/Network Error: ${e.message}`;
-        logger.error(errorMsg, e);
-        return { success: false, message: errorMsg };
+        // Catch any other unhandled errors during the process
+        const errorMsg = e.message ? e.message : 'An unknown DICOM processing error occurred.';
+        logger.error(`Unhandled DICOM Error: ${errorMsg}`, e);
+        return { success: false, message: `DICOM Processing Error: ${errorMsg}` };
     } finally {
         // Clean up the temporary file
         if (tempFilePath) {

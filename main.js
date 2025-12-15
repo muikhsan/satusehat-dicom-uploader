@@ -3,7 +3,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const logger = require('./utils/logger');
 const { sendDicomToRouter } = require('./utils/dicom-sender');
-const { validateDicomFile } = require('./utils/dicom-validator'); // Import the new validator
+const { validateDicomFile } = require('./utils/dicom-validator');
 
 let mainWindow;
 
@@ -12,9 +12,9 @@ function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'), // Using a preload script for security
-      nodeIntegration: false, // Security best practice
-      contextIsolation: true, // Security best practice
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
@@ -35,7 +35,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') { // 'darwin' is macOS
+  if (process.platform !== 'darwin') {
     app.quit();
   }
 });
@@ -44,8 +44,6 @@ app.on('window-all-closed', () => {
 // 1. Handle DICOM Transfer
 ipcMain.handle('dicom:send', async (event, data) => {
     const { filePath, routerConfig, accessionNumber, studyDescription } = data;
-    
-    // NOTE: In a real app, you might validate the Accession Number against FHIR first.
     
     const result = await sendDicomToRouter(filePath, routerConfig, accessionNumber, studyDescription);
     return result;
@@ -66,6 +64,6 @@ ipcMain.handle('dialog:openFile', async () => {
         properties: ['openFile'],
         filters: [{ name: 'DICOM Files', extensions: ['dcm'] }]
     });
-    // Return the selected file path
+
     return result.filePaths.length > 0 ? result.filePaths[0] : null;
 });

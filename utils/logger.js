@@ -27,7 +27,10 @@ const fileTransport = new winston.transports.DailyRotateFile({
   maxSize: '20m', // Rotate logs daily or when size exceeds 20MB
   maxFiles: '14d', // Keep logs for 14 days
   level: 'debug', // Log everything ('debug' and above) to the file
-  format: winston.format.json(), // Log as structured JSON for easy searching/parsing
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.json() // Log as structured JSON with timestamp for easy searching/parsing
+  ),
 });
 
 const logger = winston.createLogger({
