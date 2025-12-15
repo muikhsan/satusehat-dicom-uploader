@@ -2,39 +2,380 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SATUSEHAT DICOM Bridge</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        input, button, select { padding: 8px; margin-top: 5px; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
-        .log-area { height: 200px; overflow-y: scroll; background: #eee; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; font-family: monospace; font-size: 0.8em; }
-        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 0.95em;
+        }
+
+        .section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+        }
+
+        h2 {
+            color: #1f2937;
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h3 {
+            color: #4b5563;
+            font-size: 1.1em;
+            margin: 20px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[readonly] {
+            background: #f9fafb;
+            cursor: not-allowed;
+            color: #6b7280;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+            text-transform: none;
+        }
+
+        #selectFileButton {
+            background: #667eea;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        #selectFileButton:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #sendButton {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1.1em;
+            padding: 16px 20px;
+            margin-top: 10px;
+        }
+
+        #sendButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        #sendButton:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .log-area {
+            height: 300px;
+            overflow-y: auto;
+            background: #1f2937;
+            padding: 15px;
+            border-radius: 8px;
+            color: #e5e7eb;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .log-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-area::-webkit-scrollbar-track {
+            background: #374151;
+            border-radius: 4px;
+        }
+
+        .log-area::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        .log-area::-webkit-scrollbar-thumb:hover {
+            background: #5568d3;
+        }
+
+        .file-display {
+            background: #f3f4f6;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 2px dashed #d1d5db;
+            color: #6b7280;
+            font-size: 0.9em;
+            min-height: 45px;
+            display: flex;
+            align-items: center;
+        }
+
+        .file-display.has-file {
+            border-color: #667eea;
+            background: #ede9fe;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .section {
+                padding: 20px;
+            }
+        }
+
+        .hint {
+            font-size: 0.8em;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .settings-icon {
+            cursor: pointer;
+            font-size: 1.5em;
+            color: #6b7280;
+            transition: color 0.3s;
+            margin-top: -5px;
+        }
+
+        .settings-icon:hover {
+            color: #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-    <h1>SATUSEHAT DICOM Bridge</h1>
-    
-    <div class="section">
-        <h2>📸 DICOM Transfer</h2>
-        <input type="text" id="dicomPath" placeholder="DICOM File Path" readonly>
-        <button id="selectFileButton">Select DICOM File (*.dcm)</button>
+    <div class="container">
+        <header>
+            <h1>🏥 SATUSEHAT DICOM Bridge</h1>
+            <p class="subtitle">Assist.id DICOM Transfer & Integration</p>
+        </header>
         
-        <input type="text" id="accessionNumber" placeholder="Accession Number (from SIMRS order)" required>
-        <input type="text" id="studyDescription" placeholder="Study Description (e.g., CHEST AP)" required>
-        
-        <h3>Router Configuration</h3>
-        <input type="text" id="routerIP" placeholder="Router IP (e.g., 192.168.1.100)" value="127.0.0.1">
-        <input type="number" id="routerPort" placeholder="Router Port (e.g., 11112)" value="11112">
-        <input type="text" id="routerAE" placeholder="Router AETitle (e.g., DCMROUTER)" value="DCMROUTER">
-        <input type="text" id="myAE" placeholder="My AETitle (SCU, e.g., FDR_SMART_X)" value="FDR_SMART_X">
-        
-        <button id="sendButton">Execute C-STORE & Send to Router</button>
-    </div>
+        <div class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>📁 DICOM File Selection</h2>
+                <span id="settingsIcon" class="settings-icon">⚙️</span>
+            </div>
+            
+            <div class="form-group">
+                <div id="fileDisplay" class="file-display">
+                    No file selected
+                </div>
+                <button id="selectFileButton">📂 Browse DICOM File (*.dcm)</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="accessionNumber">Accession Number *</label>
+                <input type="text" id="accessionNumber" placeholder="Enter accession number from Assist.id order">
+                <div class="hint">Required: Order identifier from Assist.id</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="studyDescription">Study Description *</label>
+                <input type="text" id="studyDescription" placeholder="e.g., CHEST AP, CT HEAD">
+                <div class="hint">Required: Medical imaging procedure description</div>
+            </div>
 
-    <div class="section">
-        <h2>📝 Execution Log (SIMRS & Router Activity)</h2>
-        <div id="logOutput" class="log-area"></div>
+            <button id="sendButton">🚀 Execute C-STORE Transfer</button>
+        </div>
+
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h3>⚙️ Router Configuration</h3>
+            
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label for="routerIP">Router IP Address</label>
+                        <input type="text" id="routerIP" placeholder="e.g., 192.168.1.100" value="127.0.0.1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="routerPort">Router Port</label>
+                        <input type="number" id="routerPort" placeholder="e.g., 11112" value="11112">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="routerAE">Router AE Title</label>
+                        <input type="text" id="routerAE" placeholder="e.g., DCMROUTER" value="DCMROUTER">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="myAE">My AE Title (SCU)</label>
+                        <input type="text" id="myAE" placeholder="e.g., FDR_SMART_X" value="FDR_SMART_X">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📊 Execution Log</h2>
+            <div id="logOutput" class="log-area"></div>
+        </div>
     </div>
     
+    <input type="text" id="dicomPath" style="display: none;">
     <script src="renderer.js"></script>
 </body>
 </html>

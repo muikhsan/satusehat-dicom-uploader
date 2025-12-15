@@ -8,11 +8,34 @@ function log(message) {
     logElement.scrollTop = logElement.scrollHeight;
 }
 
+// Modal logic
+const modal = document.getElementById('settingsModal');
+const settingsIcon = document.getElementById('settingsIcon');
+const closeButton = document.getElementsByClassName('close-button')[0];
+
+settingsIcon.onclick = function() {
+    modal.style.display = 'block';
+}
+
+closeButton.onclick = function() {
+    modal.style.display = 'none';
+}
+
+window.onclick = function(event) {
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+
+
 document.getElementById('selectFileButton').addEventListener('click', async () => {
     const filePath = await window.api.openFileDialog();
     if (filePath) {
         document.getElementById('dicomPath').value = filePath;
-        log(`File Selected: ${filePath}`);
+        const fileName = filePath.split('/').pop();
+        document.getElementById('fileDisplay').textContent = `✓ ${fileName}`;
+        document.getElementById('fileDisplay').classList.add('has-file');
+        log(`✓ File Selected: ${filePath}`);
     }
 });
 
@@ -22,7 +45,7 @@ document.getElementById('sendButton').addEventListener('click', async () => {
     const studyDescription = document.getElementById('studyDescription').value;
     
     if (!filePath || !accessionNumber || !studyDescription) {
-        alert("Please select a DICOM file and enter an Accession Number and Study Description.");
+        alert("⚠️ Please select a DICOM file and enter both Accession Number and Study Description.");
         return;
     }
     
@@ -33,9 +56,19 @@ document.getElementById('sendButton').addEventListener('click', async () => {
         myAE: document.getElementById('myAE').value,
     };
 
-    log(`--- EXECUTE DICOM TRANSFER ---`);
-    log(`SIMRS Order Key (Accession): ${accessionNumber}`);
-    log(`Target: ${routerConfig.routerAE}@${routerConfig.routerIP}:${routerConfig.routerPort}`);
+    // Disable button during transfer
+    const sendButton = document.getElementById('sendButton');
+    const originalText = sendButton.textContent;
+    sendButton.disabled = true;
+    sendButton.textContent = '⏳ Transferring...';
+
+    log(`\n╔═══════════════════════════════════════╗`);
+    log(`║   DICOM TRANSFER INITIATED           ║`);
+    log(`╚═══════════════════════════════════════╝`);
+    log(`📋 Accession Number: ${accessionNumber}`);
+    log(`📝 Study Description: ${studyDescription}`);
+    log(`🎯 Target: ${routerConfig.routerAE}@${routerConfig.routerIP}:${routerConfig.routerPort}`);
+    log(`📤 Sending C-STORE request...`);
 
     const result = await window.api.sendDicom({ 
         filePath, 
@@ -45,13 +78,24 @@ document.getElementById('sendButton').addEventListener('click', async () => {
     });
     
     if (result.success) {
-        log(`[SIMRS Integration] STATUS: ${result.message}`);
+        log(`\n✅ SUCCESS: ${result.message}`);
+        log(`╔═══════════════════════════════════════╗`);
+        log(`║   TRANSFER COMPLETED SUCCESSFULLY    ║`);
+        log(`╚═══════════════════════════════════════╝\n`);
     } else {
-        log(`[SIMRS Integration] ERROR: ${result.message}`);
+        log(`\n❌ ERROR: ${result.message}`);
+        log(`╔═══════════════════════════════════════╗`);
+        log(`║   TRANSFER FAILED                    ║`);
+        log(`╚═══════════════════════════════════════╝\n`);
     }
-    log(`--- TRANSFER COMPLETE ---`);
+
+    // Re-enable button
+    sendButton.disabled = false;
+    sendButton.textContent = originalText;
 });
 
-// Acknowledge the use of the preload script for context
-log('Application ready. Use "Login" to validate SATUSEHAT credentials.');
-// In a real application, you would set up a pipe to receive logs from main.js/logger.js
+log('╔═══════════════════════════════════════╗');
+log('║  SATUSEHAT DICOM Bridge v1.0         ║');
+log('║  Application Ready                   ║');
+log('╚═══════════════════════════════════════╝');
+log('💡 Select a DICOM file to begin transfer\n');
