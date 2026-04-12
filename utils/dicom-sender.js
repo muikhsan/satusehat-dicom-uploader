@@ -9,6 +9,9 @@ const { validateDicomFile } = require('./dicom-validator'); // Import validator
 const { Client, Status } = dcmjsDimse;
 const { CStoreRequest } = dcmjsDimse.requests;
 
+// Minimum allowed date for SatuSehat API (June 3, 2014)
+const MIN_ALLOWED_DATE = new Date('2014-06-03');
+
 /**
  * Sanitizes a string for safe inclusion in a shell command.
  * Allows only alphanumeric characters, spaces, and hyphens.
@@ -32,6 +35,60 @@ function runCommand(command) {
             resolve(stdout);
         });
     });
+}
+
+/**
+ * Extracts the Study Date (0008,0020) from a DICOM file using dcmdump.
+ * @param {string} filePath - Path to the DICOM file.
+ * @returns {Promise<string|null>} Study Date in YYYYMMDD format or null if not found.
+ */
+async function extractStudyDate(filePath) {
+    try {
+        const command = `dcmdump +P "0008,0020" "${filePath}"`;
+        const output = await runCommand(command);
+        
+        // Parse dcmdump output - looking for line like: (0008,0020) DA [19941013]
+        const match = output.match(/\(0008,0020\)\s+DA\s+\[([0-9]+)\]/);
+        if (match && match[1]) {
+            return match[1].trim();
+        }
+        return null;
+    } catch (error) {
+        logger.warn(`Failed to extract study date from ${filePath}: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * Parses a DICOM date (YYYYMMDD format) and returns a Date object.
+ * @param {string} dicomDate - Date string in YYYYMMDD format.
+ * @returns {Date|null} Parsed date or null if invalid.
+ */
+function parseDicomDate(dicomDate) {
+    if (!dicomDate || dicomDate.length < 8) return null;
+    
+    const year = parseInt(dicomDate.substring(0, 4));
+    const month = parseInt(dicomDate.substring(4, 6)) - 1; // JS months are 0-indexed
+    const day = parseInt(dicomDate.substring(6, 8));
+    
+    const date = new Date(year, month, day);
+    
+    // Validate the date is real
+    if (isNaN(date.getTime())) return null;
+    
+    return date;
+}
+
+/**
+ * Formats a Date object to DICOM date format (YYYYMMDD).
+ * @param {Date} date - JavaScript Date object.
+ * @returns {string} Date in YYYYMMDD format.
+ */
+function formatDicomDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
 }
 
 /**
@@ -64,6 +121,25 @@ async function sendDicomToRouter(filePath, routerConfig, accessionNumber, studyD
         tempFilePath = path.join(os.tmpdir(), `dicom-bridge-${Date.now()}.dcm`);
         fs.copyFileSync(filePath, tempFilePath);
         logger.info(`Created temporary file for modification: ${tempFilePath}`);
+
+        // 3a. Extract and validate Study Date - correct if before minimum allowed date
+        const studyDateStr = await extractStudyDate(tempFilePath);
+        if (studyDateStr) {
+            const studyDate = parseDicomDate(studyDateStr);
+            if (studyDate && studyDate < MIN_ALLOWED_DATE) {
+                const correctedDate = formatDicomDate(MIN_ALLOWED_DATE);
+                logger.warn(`Study Date ${studyDateStr} is before minimum allowed date (2014-06-03). Correcting to ${correctedDate}.`);
+                
+                // Modify the study date to the minimum allowed date
+                const dateFixCommand = `dcmodify -m "(0008,0020)=${correctedDate}" "${tempFilePath}"`;
+                await runCommand(dateFixCommand);
+                logger.info(`Study Date corrected to ${correctedDate}.`);
+            } else {
+                logger.info(`Study Date ${studyDateStr} is valid.`);
+            }
+        } else {
+            logger.warn('Study Date not found in DICOM file. Proceeding without date validation.');
+        }
 
         // 4. Construct and execute the dcmodify command with sanitized data
         const command = `dcmodify -m "(0008,0050)=${sanitizedAccession}" -m "(0008,1030)=${sanitizedStudyDesc}" "${tempFilePath}"`;
